@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+backend/dist/
+
+# Env
+.env
+.env.local
+
+# k6 artifacts
+k6/seed-codes.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
