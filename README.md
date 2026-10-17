@@ -92,27 +92,38 @@ curl -i http://localhost:8080/s/<code>
 
 ## Load testing
 
-Reproduce every number in `docs/LOADTEST_RESULTS.md`:
+k6 doesn't need to be installed — run it via Docker (the commands below were
+used for the results in this repo):
 
 ```bash
-# 1. seed the hot set
-k6 run k6/seed.js --env BASE_URL=http://localhost:8080
+# 1. seed the hot set (creates 100 short codes)
+docker compose up -d
+docker run --rm -v "${PWD}:/app" -w /app --network scalex_default \
+  grafana/k6 run k6/seed.js --env BASE_URL=http://nginx
 
-# 2. baseline: single API instance, cache cold
-k6 run k6/load-test.js --env RATE=50 --env P95_TARGET_MS=500
+# 2. baseline: single API instance
+docker compose stop api2 api3
+docker exec scalex-redis redis-cli FLUSHALL
+docker run --rm -v "${PWD}:/app" -w /app --network scalex_default \
+  grafana/k6 run k6/load-test.js --env BASE_URL=http://nginx \
+  --env RATE=50 --env DURATION=30s --env CODES="1,2,3,4,5"
 
-# 3. scaled: 3 replicas + warm Redis cache
-k6 run k6/load-test.js --env RATE=500 --env P95_TARGET_MS=50
+# 3. scaled: 3 API replicas + warm cache
+docker compose up -d api2 api3
+docker run --rm -v "${PWD}:/app" -w /app --network scalex_default \
+  grafana/k6 run k6/load-test.js --env BASE_URL=http://nginx \
+  --env RATE=1000 --env DURATION=30s --env CODES="1,2,3,4,5"
 
-# record http_reqs, p95, cache_hit_rate from both runs
+# record http_reqs, p95, cache_hit_rate, http_req_failed from both runs
 ```
 
 ## Results
 
-See **[docs/LOADTEST_RESULTS.md](docs/LOADTEST_RESULTS.md)** for the full
-before/after benchmark table and how to interpret it.
+**Sustained load test (30s, 3 API replicas, warm cache):** 1,000 RPS sustained, p95 2.25 ms, avg 1.01 ms, 0% errors, 100% cache-hit rate.
 
-**Sample run (local):** 1,000 RPS sustained (30s), p95 redirect ~2.25 ms, 0% errors, cache-hit 100% across 3 API replicas behind Nginx. System held 1,500 RPS with p95 < 3.5 ms; 2,000–2,500 RPS tested with minimal latency increase.
+**Peak burst (10s):** 2,500 RPS held with p95 3.68 ms and 0% failures.
+
+Full before/after table, methodology, and analysis: **[docs/LOADTEST_RESULTS.md](docs/LOADTEST_RESULTS.md)**.
 
 ## Project layout
 
@@ -123,6 +134,12 @@ scalex/
 ├── k6/               # seed + load-test scripts with custom metrics
 ├── docs/             # architecture, load-test results, system design notes
 └── docker-compose.yml
+
+## Docs
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system diagram, request paths, scaling model
+- [docs/LOADTEST_RESULTS.md](docs/LOADTEST_RESULTS.md) — before/after benchmarks with real k6 numbers
+- [docs/SYSTEM_DESIGN_NOTES.md](docs/SYSTEM_DESIGN_NOTES.md) — design trade-offs, interview talking points
 ```
 
 ## Roadmap
