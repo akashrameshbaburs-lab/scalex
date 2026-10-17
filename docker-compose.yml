@@ -1,0 +1,133 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: scalex-db
+    environment:
+      POSTGRES_USER: scalex
+      POSTGRES_PASSWORD: scalex
+      POSTGRES_DB: scalex
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backend/src/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scalex -d scalex"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: scalex-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api1:
+    build: ./backend
+    container_name: scalex-api1
+    environment:
+      PORT: 8080
+      NODE_ENV: production
+      PG_HOST: db
+      PG_PORT: 5432
+      PG_USER: scalex
+      PG_PASSWORD: scalex
+      PG_DATABASE: scalex
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BASE_URL: http://localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  api2:
+    build: ./backend
+    container_name: scalex-api2
+    environment:
+      PORT: 8080
+      NODE_ENV: production
+      PG_HOST: db
+      PG_PORT: 5432
+      PG_USER: scalex
+      PG_PASSWORD: scalex
+      PG_DATABASE: scalex
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BASE_URL: http://localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  api3:
+    build: ./backend
+    container_name: scalex-api3
+    environment:
+      PORT: 8080
+      NODE_ENV: production
+      PG_HOST: db
+      PG_PORT: 5432
+      PG_USER: scalex
+      PG_PASSWORD: scalex
+      PG_DATABASE: scalex
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BASE_URL: http://localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: scalex-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api1:
+        condition: service_healthy
+      api2:
+        condition: service_healthy
+      api3:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
