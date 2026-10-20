@@ -1,5 +1,7 @@
 # ScaleX — Load-Tested, High-Performance URL Shortener
 
+![CI](https://github.com/akashrameshbaburs-lab/scalex/actions/workflows/ci.yml/badge.svg)
+
 ScaleX is a horizontally scalable URL shortener built to survive high concurrent
 traffic, with every performance claim backed by reproducible load-test numbers.
 It exists to answer one question properly: **what actually happens when 100
